@@ -16,7 +16,7 @@ cabal-version:       >= 1.10
 executable sandpile-exe
   hs-source-dirs:      src
   main-is:             Sandpile.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:       base >= 4.7 && < 5,
                        vector,
                        bytestring,

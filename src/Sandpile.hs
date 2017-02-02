@@ -9,9 +9,10 @@ import Codec.Picture
 import Codec.Picture.Png
 import qualified Data.ByteString.Lazy as L
 
-main = L.writeFile fn $ encodePng $ toImage s
+--main = L.writeFile fn $ encodePng $ toImage s
+main = print s
   where fn = "out.png"
-        n = 500
+        n = 100
         s = topple (Sandpile n (V.replicate (n*n) 4))
 
 toImage :: Sandpile -> Image Pixel8
@@ -23,27 +24,19 @@ data Sandpile = Sandpile Int (V.Vector Int) -- Sandpile n grid: grid of size nxn
 
 depth = 4
 
-data CellCoord = CellCoord Int Int -- x y
-  deriving (Eq, Show)
+--data CellCoord = CellCoord Int Int -- x y
+--  deriving (Eq, Show)
+type CellCoord = (Int, Int) -- x y
 
 positionToCoord :: Sandpile -> Int -> CellCoord
-positionToCoord (Sandpile n _) p = CellCoord x y
+positionToCoord (Sandpile n _) p = (x, y)
   where x = p `mod` n
         y = p `div` n
 
-coord2Position (Sandpile n _) (CellCoord x y) = y*n + x
+coord2Position (Sandpile n _) (x, y) = y*n + x
 
 isValidSandpileCoord :: Sandpile -> CellCoord -> Bool
-isValidSandpileCoord (Sandpile n _) (CellCoord x y) = x < n && y < n && x >= 0 && y >= 0
-
-
-neighbourhood :: Sandpile -> CellCoord -> [CellCoord]
-neighbourhood s (CellCoord x y) = filter isValid neighbs
-  where neighbs = [                 cc ( x ) (y-1)
-                  , cc (x-1) ( y ),                 cc (x+1) ( y )
-                  ,                 cc ( x ) (y+1)                 ]
-        cc = CellCoord
-        isValid = isValidSandpileCoord s
+isValidSandpileCoord (Sandpile n _) (x, y) = x < n && y < n && x >= 0 && y >= 0
 
 topple :: Sandpile -> Sandpile
 topple s = let s' = toppleOnce s in
@@ -52,11 +45,17 @@ topple s = let s' = toppleOnce s in
 
 toppleOnce :: Sandpile -> Sandpile
 toppleOnce s@(Sandpile n g) = (Sandpile n) $ V.create $ do
-    let toppleCoords = map p2c $ V.toList $ V.findIndices (>= depth) g
-    g' <- V.thaw g
-    forM_ toppleCoords $ \c -> do
-      M.modify g' (-depth+) (c2p c)
-      forM_ (neighbourhood s c) $ \c -> M.modify g' (1+) (c2p c)
+    --let topplePositions = V.findIndices (>= depth) g
+    g' <- V.unsafeThaw g
+    V.forM_ (V.enumFromN 0 (n*n)) $ \p -> do
+      v <- M.read g' p
+      when (v >= depth) $ do
+        M.unsafeModify g' (-depth+) p
+        let (x,y) = p2c p
+        when (y-1 >= 0) $ M.unsafeModify g' (1+) (c2p (x, y-1))
+        when (x-1 >= 0) $ M.unsafeModify g' (1+) (c2p (x-1, y))
+        when (x+1 < n)  $ M.unsafeModify g' (1+) (c2p (x+1, y))
+        when (y+1 < n)  $ M.unsafeModify g' (1+) (c2p (x, y+1))
     return g'
   where
     p2c = positionToCoord s
